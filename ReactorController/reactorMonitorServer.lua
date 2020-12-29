@@ -1,8 +1,19 @@
 --- Reactor Server
 --- @Tymec
 
-print("Reactor Server is Online...")
 local reactor = peripheral.wrap("back")
+
+function update()
+    fs.delete("startup")
+    shell.run("pastebin get U340PWxt startup")
+    os.reboot()
+end
+
+function tablelength(T)
+    local count = 0
+    for _ in pairs(T) do count = count + 1 end
+    return count
+end
 
 function split(inputstr, sep)
     if sep == nil then
@@ -13,11 +24,6 @@ function split(inputstr, sep)
         table.insert(t, str)
     end
     return t
-end
-
-function parseParams(msg)
-    local params = split(msg)
-    return params[0], params[1]
 end
 
 function logPrint(msg, _t, _c, _i)
@@ -37,6 +43,10 @@ function init()
     print("Waiting for Master to initialize...")
     rednet.open("top")
     rednet.host("reactorMonitor", "reactorMonitorServer")
+
+    -- Check if all packages are installed
+    shell.run("pastebin get 1UxUTKi4 toboolean")
+
     while (true) do
         local _s = rednet.broadcast("ping", "reactorMonitor")
         local id, msg, pro = rednet.receive(1)
@@ -80,6 +90,12 @@ function updateReactor()
     return data
 end
 
+-- MAIN
+if (arg[1] == "update") then
+    update()
+end
+
+local tb = dofile("toboolean")
 local masterId = init()
 
 --- Init reactor
@@ -89,18 +105,21 @@ while(true) do
     logPrint(string.format("Energy stored: %d RF", reactor.getEnergyStored()), "INFO", colors.orange, false)
     local success = rednet.send(masterId, reactorData, "reactorMonitor")
     logPrint(string.format("Rednet transmission %s", success and "was successful" or "failed"), nil, success and colors.green or colors.red, true)
-    
-    local id, msg, pro = rednet.receive(5)
+
+    local id, msg, pro = rednet.receive(1)
     if (id == masterId and pro == "reactorMaster") then
-        local cmd, arg = parseParams(msg)
-        if (cmd == "setActive") then
-            reactor.setActive(true and tonumber(arg) or false)
-            logPrint(textutils.format("Rednet request: setActive(%d)", true and tonumber(arg) or false), "INFO", colors.yellow, false)
-            rednet.send(masterId, string.format("isActive %d", true and tonumber(arg) or false), "reactorMonitor")
-        elseif (cmd == "setAllControlRodLevels") then
-            reactor.setAllControlRodLevels(tonumber(arg))
-            logPrint(textutils.format("Rednet request: setAllControlRodLevels(%d)", arg), "INFO", colors.yellow, false)
-            rednet.send(masterId, string.format("allControlRodLevels %d", arg), "reactorMonitor")
+        local params = split(msg, " ")
+        if (tablelength(params) == 2) then
+            local cmd, arg = params[1], params[2]
+            if (cmd == "setActive") then
+                reactor.setActive(tb(arg))
+                logPrint(string.format("Rednet request: setActive(%s)", arg), "INFO", colors.yellow, false)
+                rednet.send(masterId, string.format("Reactor active: %s", arg), "reactorMonitor")
+            elseif (cmd == "setAllControlRodLevels") then
+                reactor.setAllControlRodLevels(tonumber(arg))
+                logPrint(string.format("Rednet request: setAllControlRodLevels(%s)", arg), "INFO", colors.yellow, false)
+                rednet.send(masterId, string.format("Reactor allControlRodLevels: %s", arg), "reactorMonitor")
+            end
         end
     end
 end

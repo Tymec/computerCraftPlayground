@@ -5,6 +5,12 @@ local BATTERY_CELL_NAME = "thermalexpansion:storage_cell"
 local BATTERY_HEIGHT = 3
 local BATTERY_CAPACITY = 0
 
+function update()
+    fs.delete("startup")
+    shell.run("pastebin get iV5zYGmw startup")
+    os.reboot()
+end
+
 function logPrint(msg, _t, _c, _i)
     if not _i then
         local _ct = os.time()
@@ -41,17 +47,19 @@ function getEnergyCells()
             table.insert(energyCells, cellTable)
         end
     end
-    BATTERY_CAPACITY = energyCells[1]["capacity"]
     energyCells["length"] = tablelength(energyCells)
+    energyCells["height"] = BATTERY_HEIGHT
+    energyCells["capacity"] = energyCells["length"] * energyCells["height"] * energyCells[1]["capacity"]
     return energyCells
 end
 
 function updateEnergyCells(cells)
+    local updatedCells = cells
     for i = 1, cells["length"], 1 do
         local _n = cells[i]["name"]
-        cells[i]["stored"] = peripheral.call(_n, "getEnergyStored")
+        updatedCells[i]["stored"] = peripheral.call(_n, "getEnergyStored")
     end
-    return cells
+    return updatedCells
 end
 
 function init()
@@ -67,12 +75,16 @@ function init()
     end
 end
 
---- Wait for master
+-- MAIN
+if (arg[1] == "update") then
+    update()
+end
+
 local masterId = init()
 
 --- Init cells
 local cells = getEnergyCells()
-logPrint(string.format("There are %d (%dx%d) energy cells connected to the battery.", (BATTERY_HEIGHT * cells["length"]), cells["length"], BATTERY_HEIGHT), "INFO", colors.orange, false)
+logPrint(string.format("There are %d (%dx%d) energy cells connected to the battery.", (cells["height"] * cells["length"]), cells["length"], cells["height"]), "INFO", colors.orange, false)
 logPrint("Reactor Battery Server is running...", nil, colors.green, true)
 sleep(3)
 shell.run("clear")
